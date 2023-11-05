@@ -8,3 +8,4 @@ Version : 1.0
 """
 
 
+#Nous devons dans un premiers temps récupérer l'intégralité des produits de Sephora.com.
