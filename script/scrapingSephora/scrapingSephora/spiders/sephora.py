@@ -8,8 +8,8 @@ import yaml
 from yaml.loader import SafeLoader
 
 inputFile = "../../inputFiles/config.yaml"
-with open(inputFile,) as f :   
-    config = yaml.load(f,Loader=SafeLoader)
+with open(inputFile,"r") as f :   
+     config = yaml.load(f,Loader=SafeLoader)
 
 class SephoraSpider(scrapy.Spider):
     name = "sephora"
@@ -24,7 +24,9 @@ class SephoraSpider(scrapy.Spider):
             yield scrapy.Request(url, callback=self.parse_product)
     
     def parse_product(self, response):
-        db = MongoClient(f"{config['host']}/{config['mongoCol']}/{config['informationDb']}")
+
+        db = MongoClient(config['host'])
+        db = db[config['mongoCol']][config['informationDb']]
         script = json.loads(response.css('#linkStore::text').get())
         if 'regularChildSkus' in script['page']['product'] :
             files = script['page']['product']['regularChildSkus']
@@ -61,39 +63,43 @@ class SephoraSpider(scrapy.Spider):
                 db.insert_one(item)
             else :
                 db.find_one_and_update(filter={'skuId':item['skuId']},update={"$set" : item},sort=[('update',-1)])
-            yield item
 
-class SephoraReview(scrapy.Spider):
-    name = 'RevSephora'
+class SephoraSpider(scrapy.Spider) :
+    name = 'revSephora'
     allowed_domains = ['api.bazaarvoice.com']
     
+    InformationDb = config['informationDb']
+    reviewDb = config['RevDb']
+    api = config['bazarVoiceApi']
+    hotline = config['host']
+
     def requests_urls():
         db  = MongoClient(config['host'])
-        url = pd.DataFrame(db['Sephora']['Information'].find())
+        url = pd.DataFrame(db['Sephora'][config['informationDb']].find())
+        url.sort_values(by='reviews',inplace=True)
         ProdId = url['targetUrl'].apply(lambda x :x.split('-')[-1].split('?')[0])
         ProdId = set(ProdId)
-        url = [f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{i}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey={config['bazarVoiceApi']}&apiversion=5.4"
+        url = [f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{i}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey=calXm2DyQVjcCy9agq85vmTJv5ELuuBCF2sdg4BnJzJus&apiversion=5.4"
                for i in ProdId]
         return url
     
     start_urls = requests_urls()
 
     def parse(self,response):
-        res = json.loads(response.text)
-        total = int(res['TotalResults'])
-        offset = 0
-        if total > 0:
-            while True :
-                url = f"{response.url}&offset={offset}"
-                resp = json.loads(response.text)
-                for i in resp['Results'] :
-                    db = MongoClient(config['host'])[config['mongoCol']][config["RevDb"]]
-                    if db.count_documents({'SubmissionId':i['SubmissionId']})==0 :
-                        db.insert_one(i)
-                if total <= offset :
-                    break
-                else : 
-                    offset += 100
-                if response.status != 200:
-                    print(response.url)
-                yield scrapy.Request(url,self.parse)
+        mongo_db = 'Sephora'
+        mongo_col = self.reviewDb
+        while True:
+            resp = json.loads(response.text)
+            results = resp.get('Results', [])
+            
+            for review in results:
+                db = MongoClient('localhost', 27017)[mongo_db][mongo_col]
+                if db.count_documents({'CID': review['CID']}) == 0:
+                    db.insert_one(review)
+            
+            if not results:
+                break
+            
+            offset = resp.get('Offset', 0) + resp.get('Limit', 100)
+            url = f"{response.url}&offset={offset}"
+            yield scrapy.Request(url,self.parse)
