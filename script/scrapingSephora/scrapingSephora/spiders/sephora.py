@@ -64,42 +64,39 @@ class SephoraSpider(scrapy.Spider):
             else :
                 db.find_one_and_update(filter={'skuId':item['skuId']},update={"$set" : item},sort=[('update',-1)])
 
-class SephoraSpider(scrapy.Spider) :
+class SephoraReviewSpider(scrapy.Spider) :
     name = 'revSephora'
     allowed_domains = ['api.bazaarvoice.com']
     
     InformationDb = config['informationDb']
     reviewDb = config['RevDb']
     api = config['bazarVoiceApi']
-    hotline = config['host']
+    host = config['host']
 
-    def requests_urls():
-        db  = MongoClient(config['host'])
-        url = pd.DataFrame(db['Sephora'][config['informationDb']].find())
-        url.sort_values(by='reviews',inplace=True)
-        ProdId = url['targetUrl'].apply(lambda x :x.split('-')[-1].split('?')[0])
-        ProdId = set(ProdId)
-        url = [f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{i}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey=calXm2DyQVjcCy9agq85vmTJv5ELuuBCF2sdg4BnJzJus&apiversion=5.4"
-               for i in ProdId]
-        return url
-    
-    start_urls = requests_urls()
+    def start_requests(self):
+        db  = MongoClient(self.host)
+        dt = pd.DataFrame(db['Sephora'][self.InformationDb].find())
+        dt.sort_values(by='reviews',inplace=True)
+        dt['ProdId'] = dt['targetUrl'].apply(lambda x :x.split('-')[-1].split('?')[0])
+        df = dt[["ProdId",'reviews']].drop_duplicates()
+        df['offsetMax'] = df['reviews'] - (df['reviews'] % 100) 
+        df['offsetMax'] = df['offsetMax'].astype(int)
+        df.reset_index(inplace=True,drop=True)
+        allUrl = []
+        for idx,prodId in enumerate(df['ProdId']) :
+            for total in range(0,df["offsetMax"][idx],100) :
+                allUrl.append(f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{prodId}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey={self.api}&apiversion=5.4&offset={total}")
+        for url in allUrl :
+            yield scrapy.Request(url,callback=self.parse_item)
 
-    def parse(self,response):
-        mongo_db = 'Sephora'
-        mongo_col = self.reviewDb
-        while True:
-            resp = json.loads(response.text)
-            results = resp.get('Results', [])
-            
-            for review in results:
-                db = MongoClient('localhost', 27017)[mongo_db][mongo_col]
-                if db.count_documents({'CID': review['CID']}) == 0:
-                    db.insert_one(review)
-            
-            if not results:
-                break
-            
-            offset = resp.get('Offset', 0) + resp.get('Limit', 100)
-            url = f"{response.url}&offset={offset}"
-            yield scrapy.Request(url,self.parse)
+
+    def parse_item(self,response) :
+        resp = json.loads(response.text)
+        results = resp.get('Results',[])
+        for item in results :
+            with MongoClient(self.host) as fp :
+                col =fp['Sephora'][self.reviewDb]
+                if col.count_documents({"CID" : item["CID"]}) == 0 :
+                     col.insert_one(item)
+                     yield item
+
