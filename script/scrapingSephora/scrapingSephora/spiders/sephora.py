@@ -86,6 +86,8 @@ class SephoraReviewSpider(scrapy.Spider) :
         for idx,prodId in enumerate(df['ProdId']) :
             for total in range(0,df["offsetMax"][idx],100) :
                 allUrl.append(f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{prodId}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey={self.api}&apiversion=5.4&offset={total}")
+        allReady = list(set(db['Sephora'][self.reviewDb].distinct("url")))
+        allUrl = list(set(allUrl) - set(allReady))
         for url in allUrl :
             yield scrapy.Request(url,callback=self.parse_item)
 
@@ -97,6 +99,7 @@ class SephoraReviewSpider(scrapy.Spider) :
             with MongoClient(self.host) as fp :
                 col =fp['Sephora'][self.reviewDb]
                 if col.count_documents({"CID" : item["CID"]}) == 0 :
+                     item["url"] = response.url
                      col.insert_one(item)
                      yield item
 
