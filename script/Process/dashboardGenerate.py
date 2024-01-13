@@ -21,7 +21,8 @@ app.layout = html.Div([
     ),
     html.Div([
         dbc.Row([
-            dbc.Col(html.P(id='numberOfItem'),width=2),
+            dbc.Col([html.Img(src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Five-pointed_star.svg/220px-Five-pointed_star.svg.png"),
+                    html.P(id='numberOfItem',style={"text-align" : "center"})],width=2,style={'text-align': 'center'}),
             dbc.Col(html.P(id='avgRating'),width=2),
             dbc.Col(html.P(id='avgLovesCount'),width=2),
             dbc.Col(dcc.Graph(id='pie_chart'),width=6)
@@ -31,8 +32,6 @@ app.layout = html.Div([
         ])
     ])
 ])
-
-    
 
 @app.callback(
     [Output('numberOfItem', 'children'),
@@ -60,7 +59,7 @@ def update_charts(selected_brand):
 
 
     pie = px.pie(filtered_data, names='Category1')
-    histogram = px.histogram(filtered_data.drop_duplicates(subset='name').sort_values('price'), x='name', y='price')
+    histogram = px.histogram(filtered_data.drop_duplicates(subset='name').sort_values('price'), x='name', y='price').update_layout(xaxis_title="Product Name",yaxis_title='Price ($)')
     # Scatter plot
     scatter_plot = px.scatter(filtered_data, x='reviews', y='lovesCount')
     
