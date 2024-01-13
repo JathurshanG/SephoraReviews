@@ -2,6 +2,7 @@ import pandas as pd
 from pymongo import MongoClient
 import yaml
 from yaml import SafeLoader
+import plotly.express as px
 
 def getconfig() :
     inputFile = "../../inputFiles/config.yaml"
