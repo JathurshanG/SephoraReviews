@@ -95,11 +95,25 @@ class SephoraReviewSpider(scrapy.Spider) :
     def parse_item(self,response) :
         resp = json.loads(response.text)
         results = resp.get('Results',[])
-        for item in results :
-            with MongoClient(self.host) as fp :
-                col =fp['Sephora'][self.reviewDb]
-                if col.count_documents({"CID" : item["CID"]}) == 0 :
-                     item["url"] = response.url
-                     col.insert_one(item)
-                     yield item
+        for result in results :
+            item = {
+                'CID' : result.get('CID',None),
+                'ProdID' : result.get("ProductId",None),
+                'ContentLocale' : result.get('ContentLocale',None),
+                'IsFeatured'    : result.get('IsFeatured',None),
+                'Rating'        : result.get('Rating',None),
+                'IsRecommended' : result.get('IsRecommended',None),
+                "Date"          : result.get("LastModeratedTime",None),
+                "Title"         : result.get("Title",None),
+                "ReviewText"    : result.get('ReviewText',None),
+                "IsSyndicated"  : result.get('IsSyndicated',None),
+                "url"           : response.url
+                                        }
+            for i in result.get("ContextDataValuesOrder",[]) :
+                item[i] = result["ContextDataValues"][i]['Value']
 
+            with MongoClient(self.host) as fp :
+                col = fp["Sephora"][self.reviewDb]
+                if col.count_documents({"CID" : item['CID']})==0 :
+                    col.insert_one(item)
+            yield item

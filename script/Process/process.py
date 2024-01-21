@@ -1,8 +1,13 @@
+import json
 import pandas as pd 
 from pymongo import MongoClient
 import yaml
 from yaml import SafeLoader
 import plotly.express as px
+import pyspark
+from pyspark import SparkContext
+from pyspark.sql import SparkSession, SQLContext
+
 
 def getconfig() :
     inputFile = "../../inputFiles/config.yaml"
@@ -30,5 +35,52 @@ def processAggregateDate() :
                                                                           "price"  : "max",
                                                                           "lovesCount" : "max"})
     groupByDt.sort_values(['prodID'],ascending=[False]).reset_index(drop=True,inplace=True)
-    groupByDt
+    groupByDt.to_json('../../outputFiles/GroupedData.json',orient='values')
     return groupByDt
+
+def groupedCat(name,rev):
+    dt = rev.groupBy(['ProdID']).pivot(name).count().drop('null')
+    return dt
+
+def GetReviewsData():
+    config = getconfig()
+    host = config['host']
+    db   = config['mongoCol']
+    rev = config['RevDb']
+    conf = pyspark.SparkConf().set("spark.jars.packages", "org.mongodb.spark:mongo-spark-connector_2.12:3.0.1") \
+                    .setMaster('local') \
+                    .setAppName('ReviewSephora') \
+                    .setAll([('spark.driver.memory', '40g'), ('spark.executor.memory', '50g')])
+    sc = SparkContext(conf=conf)
+    sqlC = SQLContext(sc)
+    mongo_uri = f"{host}{db}.{rev}"
+    rev = sqlC.read.format('com.mongodb.spark.sql.DefaultSource').option('uri',mongo_uri).load()
+    df = rev.createOrReplaceTempView("Rev")
+    rev = rev.drop('CID').drop('_id').sort('ProdID')
+    ['ContentLocale', 'Date', 'IsFeatured', 'IsRecommended', 'IsSyndicated', 'ProdID', 'Rating', 'ReviewText', 'Title', 'age', 'eyeColor', 'hairColor', 'hairCondition', 'skinTone', 'skinType', 'url']
+    age = groupedCat('age',rev)
+    ContentLocale = groupedCat("ContentLocale",rev)
+    IsFeatured = groupedCat("IsFeatured",rev).withColumnRenamed('true','Featured').withColumnRenamed('false','NotFeatured')
+    IsRecommended = groupedCat('IsRecommended',rev).withColumnRenamed('true','Recomended').withColumnRenamed('false','NotRecomended')
+    IsSyndicated = groupedCat('IsSyndicated',rev).withColumnRenamed('true','Syndicated').withColumnRenamed('false','NotSyndicated')
+    eyeColor      = groupedCat('eyeColor',rev)
+    hairColor     = groupedCat('hairColor',rev)
+    hairCondition = groupedCat('hairCondition',rev)
+    skinTone      = groupedCat('skinTone',rev)
+    skinType      = groupedCat('skinType',rev)
+    finalDt = age.join(ContentLocale,on=['ProdID'])\
+                .join(IsFeatured,on='ProdID')\
+                .join(IsRecommended,on='ProdID')\
+                .join(IsSyndicated,on='ProdID')\
+                .join(eyeColor.toDF(*[col + "_eye" for col in eyeColor.columns ]).withColumnRenamed('ProdID_eye','ProdID'),on=['ProdID'])\
+                .join(hairColor.toDF(*[col + "_hair" for col in hairColor.columns]).withColumnRenamed('ProdID_hair',"ProdID"),on=['ProdID'])\
+                .join(hairCondition.toDF(*[col + "_hair" for col in hairCondition.columns]).withColumnRenamed('ProdID_hair',"ProdID"),on='ProdID')\
+                .join(skinTone.toDF(*[col + "_skin" for col in skinTone.columns]).withColumnRenamed('ProdID_skin',"ProdID"),on='ProdID')\
+                .join(skinType.toDF(*[col + "_skin" for col in skinType.columns]).withColumnRenamed('ProdID_skin',"ProdID"),on='ProdID')\
+                
+    finalDt.toPandas().to_json('../../outputFiles/AggregateData.json')
+    sc.stop()
+    
+    return None
+
+
