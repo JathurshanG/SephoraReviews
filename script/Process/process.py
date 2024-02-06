@@ -13,6 +13,8 @@ from pyspark.ml.feature import HashingTF, IDF, Tokenizer
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml import Pipeline
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
+import re
+
 
 def getconfig() :
     inputFile = "../../inputFiles/config.yaml"
@@ -34,12 +36,14 @@ def processAggregateDate() :
     dt["price"] = dt['listPrice'].apply(lambda x : float(x.replace('$',"")))
     dt["skuImages"] =  dt["skuImages"].apply(lambda x : x['imageUrl'])
     dt['variant'] = 1
-    groupByDt = dt.groupby(by=['prodID','name',"brand",'Category1', 'Category2','Category3',"size"],as_index=False).agg({"reviews": "max",
+
+    dt['shortDesc'] = dt['shortDesc'].apply(lambda x : re.sub(r"<[^>]*>", ",", x))
+    groupByDt = dt.groupby(by=['prodID','name','shortDesc',"brand",'Category1', 'Category2','Category3',"size"],as_index=False).agg({"reviews": "max",
                                                                         "variant" :"count",
                                                                         "rating" : "max",
                                                                         "price"  : "max",
                                                                         "lovesCount" : "max"})
-    groupByDt.sort_values(['prodID'],ascending=[False]).reset_index(drop=True,inplace=True)
+    groupByDt.sort_values(['prodID'],ascending=[False]).reset_index(drop=True,inplace=True)    
     groupByDt.to_json('../../outputFiles/dataset/GroupedData.json')
     return groupByDt
 
@@ -114,3 +118,4 @@ def GetReviewsData():
     finalDt.toPandas().to_json('../../outputFiles/dataset/AggregateData.json')
     sc.stop()
     return None
+
