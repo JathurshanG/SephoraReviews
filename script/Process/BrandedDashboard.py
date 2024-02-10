@@ -3,7 +3,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 import pandas as pd
-import process
+import processPerBrand as process
 import plotly.express as px
 
 # Exemple de DataFrame avec les noms de marques et de produits
