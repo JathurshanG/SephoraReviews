@@ -22,7 +22,6 @@ skinTone = ["ProdID",'dark_skin', 'deep_skin','ebony_skin', 'fair_skin', 'fairLi
 skinType = ["ProdID",'combination_skin', 'dry_skin', 'normal_skin', 'oily_skin']
 Sentiment = ["ProdID",'BadSentiment', 'GoodSentiment']
 information = ["ProdID",'prodID', 'name', 'brand', 'Category1','Category2', 'Category3', 'size', 'reviews', 'variant', 'rating', 'price', 'lovesCount']
-ProdID = 'P417625'
 stop_words = set(stopwords.words("english"))
 
 def cleanData(sentence) :
@@ -32,18 +31,10 @@ def cleanData(sentence) :
     return texte
 
 
-def Recomendation(finalDt,ProdID):  
-    cat3 = finalDt.loc[finalDt['ProdID']==ProdID,'Category3'].values[0]
-    cat1 = finalDt.loc[finalDt['ProdID']==ProdID,'Category1'].values[0]
-    if 'Skincare' in cat1 :
-        features = [j for i in [skinTone,skinType,age] for j in i if pd.api.types.is_numeric_dtype(finalDt[j])]
-    elif 'Hair' in cat1 :
-        features = [j for i in [hairColor,hairCondition] for j in i if pd.api.types.is_numeric_dtype(finalDt[j])]
-    elif 'Makeup' in cat1 :
-        features = [j for i in [skinTone,information] for j in i if pd.api.types.is_numeric_dtype(finalDt[j])]
-    else :
-        features = [j for i in [information] for j in i if pd.api.types.is_numeric_dtype(finalDt[j])]
-
+def Recomendation(finalDt,name,brand):  
+    cat3 = finalDt.loc[(finalDt['name']==name) & (finalDt['brand']==brand),'Category3'].values[0]
+    cat1 = finalDt.loc[(finalDt['name']==name) & (finalDt['brand']==brand),'Category1'].values[0]
+    ProdID = finalDt.loc[(finalDt['name']==name) & (finalDt['brand']==brand),'ProdID'].values[0]
     df = finalDt[finalDt['Category3']==cat3]
     df = df.drop_duplicates(subset='ProdID').reset_index(drop=True)
     df['texte'] = df['shortDesc'].apply(lambda x : cleanData(x))
@@ -57,5 +48,6 @@ def Recomendation(finalDt,ProdID):
     recommended_products = df.iloc[similar_products]['ProdID']
     for idx,i in enumerate(recommended_products) :
         df.loc[df['ProdID']==ProdID,f'Reco{idx}'] = i
-    df.drop(columns=['texte'])
+    df = df.drop(columns=['texte'])
     return df
+

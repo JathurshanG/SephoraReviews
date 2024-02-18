@@ -34,7 +34,7 @@ def processAggregateDate() :
         dt.drop(columns=['_id'],inplace=True)
     dt['prodID'] = dt['targetUrl'].apply(lambda x : x.split("-")[-1].split('?')[0])
     dt["price"] = dt['listPrice'].apply(lambda x : float(x.replace('$',"")))
-    dt["skuImages"] =  dt["skuImages"].apply(lambda x : x['imageUrl'])
+    dt["skuImages"] =  dt["skuImages"].apply(lambda x : x['imageUrl'].split("?")[0])
     dt['variant'] = 1
     dt['shortDesc'] = dt['shortDesc'].apply(lambda x : re.sub(r"<[^>]*>", ",", x))
     groupByDt = dt.groupby(by=['prodID','name','shortDesc',"brand",'Category1', 'Category2','Category3',"size","skuImages"],as_index=False).agg({"reviews": "max",
