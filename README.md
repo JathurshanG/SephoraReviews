@@ -21,7 +21,7 @@ The primary objective of this project is to:
 
 Curious about what you'll get? Here we have your screenshot! Dive into the visual journey of data with our interactive dashboard. It’s designed to give you a quick yet insightful look into the vast sea of comments we’ve analyzed. From sentiment analysis to trending keywords, our dashboard brings data to life, making it easy for you to draw meaningful insights at a glance.
 
-Please note: The image shown is a snapshot of our dashboard. Actual features and data visualizations may vary as we continuously update and enhance our platform.
+<i>Please note: The image shown is a snapshot of our dashboard. Actual features and data visualizations may vary as we continuously update and enhance our platform.</i>
 
 ![Your Dashboard Screenshot](https://github.com/JathurshanG/SephoraReviews/blob/process/outputFiles/ScreenShot/Dashboard%20ScreenShot.png?raw=true)
 
