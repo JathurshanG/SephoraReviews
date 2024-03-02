@@ -23,7 +23,7 @@ Curious about what you'll get? Here we have your screenshot! Dive into the visua
 
 <i>Please note: The image shown is a snapshot of our dashboard. Actual features and data visualizations may vary as we continuously update and enhance our platform.</i>
 
-![Your Dashboard Screenshot](https://github.com/JathurshanG/SephoraReviews/blob/process/outputFiles/ScreenShot/Dashboard%20ScreenShot.png?raw=true)
+![Your Dashboard Screenshot](https://github.com/JathurshanG/SephoraReviews/blob/process/outputFiles/ScreenShot/DashboarScreenShot.png?raw=true)
 
 
 ## How to Use
