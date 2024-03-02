@@ -2,3 +2,4 @@ inputFiles/config.yaml
 script/sephoraVenv
 *_pycache__
 *.pyc
+*.json

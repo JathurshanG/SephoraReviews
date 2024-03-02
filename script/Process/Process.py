@@ -44,7 +44,7 @@ def Recomendation(finalDt,name,brand):
     model.fit(product_features)
     cosine_similarities = cosine_similarity(product_features)
     product_index = df[df['ProdID'] == ProdID].index[0]
-    similar_products = cosine_similarities[product_index].argsort()[::-1][1:6]  
+    similar_products = cosine_similarities[product_index].argsort()[::-1][1:11]  
     recommended_products = df.iloc[similar_products]['ProdID']
     for idx,i in enumerate(recommended_products) :
         df.loc[df['ProdID']==ProdID,f'Reco{idx}'] = i
