@@ -86,6 +86,8 @@ class SephoraReviewSpider(scrapy.Spider) :
         for idx,prodId in enumerate(df['ProdId']) :
             for total in range(0,df["offsetMax"][idx],100) :
                 allUrl.append(f"https://api.bazaarvoice.com/data/reviews.json?Filter=contentlocale%3Aen*&Filter=ProductId%3A{prodId}&Sort=SubmissionTime%3Adesc&Limit=100&Include=Products%2CComments&Stats=Reviews&passkey={self.api}&apiversion=5.4&offset={total}")
+        allReady = list(set(db['Sephora'][self.reviewDb].distinct("url")))
+        allUrl = list(set(allUrl) - set(allReady))
         for url in allUrl :
             yield scrapy.Request(url,callback=self.parse_item)
 
@@ -93,10 +95,25 @@ class SephoraReviewSpider(scrapy.Spider) :
     def parse_item(self,response) :
         resp = json.loads(response.text)
         results = resp.get('Results',[])
-        for item in results :
-            with MongoClient(self.host) as fp :
-                col =fp['Sephora'][self.reviewDb]
-                if col.count_documents({"CID" : item["CID"]}) == 0 :
-                     col.insert_one(item)
-                     yield item
+        for result in results :
+            item = {
+                'CID' : result.get('CID',None),
+                'ProdID' : result.get("ProductId",None),
+                'ContentLocale' : result.get('ContentLocale',None),
+                'IsFeatured'    : result.get('IsFeatured',None),
+                'Rating'        : result.get('Rating',None),
+                'IsRecommended' : result.get('IsRecommended',None),
+                "Date"          : result.get("LastModeratedTime",None),
+                "Title"         : result.get("Title",None),
+                "ReviewText"    : result.get('ReviewText',None),
+                "IsSyndicated"  : result.get('IsSyndicated',None),
+                "url"           : response.url
+                                        }
+            for i in result.get("ContextDataValuesOrder",[]) :
+                item[i] = result["ContextDataValues"][i]['Value']
 
+            with MongoClient(self.host) as fp :
+                col = fp["Sephora"][self.reviewDb]
+                if col.count_documents({"CID" : item['CID']})==0 :
+                    col.insert_one(item)
+            yield item
